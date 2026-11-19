@@ -67,6 +67,25 @@ def build_cutlist(job: Job) -> list[Part]:
     return [p for p in parts if p.qty > 0 and p.length > 0 and p.width > 0]
 
 
+def edgeband_takeoff(parts: list[Part], waste_pct: float = 10.0) -> dict:
+    """Linear feet of edgebanding per material. 'front' = one long edge, 'all' = all four edges."""
+    by_mat: dict[str, float] = {}
+    for p in parts:
+        if p.edgeband == "front":
+            inches = p.length
+        elif p.edgeband == "all":
+            inches = 2 * (p.length + p.width)
+        else:
+            continue
+        by_mat[p.material] = by_mat.get(p.material, 0.0) + inches * p.qty
+    out = {}
+    for m, inches in sorted(by_mat.items()):
+        lf = inches / 12
+        out[m] = {"linear_feet": round(lf, 1), "with_waste_linear_feet": round(lf * (1 + waste_pct / 100), 1)}
+    return {"waste_pct": waste_pct, "by_material": out,
+            "total_with_waste_linear_feet": round(sum(v["with_waste_linear_feet"] for v in out.values()), 1)}
+
+
 def summarize(parts: list[Part]) -> dict:
     by_mat: dict[str, dict] = {}
     for p in parts:
