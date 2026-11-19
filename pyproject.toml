@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "millwork-mcp-lite"
+version = "0.1.0"
+description = "Open-source MCP server for cabinet shops: schedule review, frameless cut lists and panel-saw sheet nesting."
+readme = "README.md"
+authors = [{ name = "Prince Boafo" }]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = ["mcp>=1.0,<2"]
+keywords = ["mcp", "cabinets", "millwork", "woodworking", "cnc", "cut-list", "nesting"]
+classifiers = ["License :: OSI Approved :: MIT License", "Programming Language :: Python :: 3"]
+
+[project.scripts]
+millwork-mcp-lite = "millwork_mcp_lite.server:main"
+
+[project.urls]
+Homepage = "https://github.com/Toolibi/millwork-mcp-lite"
+"Full version" = "https://github.com/Toolibi/millwork-mcp"
+
+[tool.setuptools]
+packages = ["millwork_mcp_lite"]
