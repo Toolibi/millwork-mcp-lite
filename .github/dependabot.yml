@@ -4,6 +4,10 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    ignore:
+      # mcp 2.x changed the FastMCP API; upgrade deliberately, not automatically
+      - dependency-name: "mcp"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
@@ -12,3 +16,7 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
+    ignore:
+      # stay on a stable Python; move to a new minor version by hand once it is released and tested
+      - dependency-name: "python"
+        update-types: ["version-update:semver-minor"]
