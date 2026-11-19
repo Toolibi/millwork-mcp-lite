@@ -98,8 +98,8 @@ def test_server_exposes_tools_prompts_resources():
     import asyncio
     from millwork_mcp_lite.server import mcp
     tools = {t.name: t for t in asyncio.run(mcp.list_tools())}
-    assert set(tools) == {"review_cabinet_schedule", "build_cutlist", "nest_sheets", "sheet_count",
-                          "edgeband_takeoff", "list_cabinet_types", "about"}
+    assert set(tools) == {"review_cabinet_schedule", "build_cutlist", "nest_sheets", "count_sheets",
+                          "calculate_edgeband", "list_cabinet_types", "get_server_info"}
     for t in tools.values():
         assert t.annotations.readOnlyHint and not t.annotations.destructiveHint
         assert "Returns:" in t.description and len(t.description) > 200
@@ -110,7 +110,7 @@ def test_server_exposes_tools_prompts_resources():
 
 
 def test_tools_run_end_to_end_through_mcp():
-    out = _call("sheet_count", {"job": EXAMPLE})
+    out = _call("count_sheets", {"job": EXAMPLE})
     text = str(out)
     assert "MEL-WHT-34" in text and "LITE-101" in text
 

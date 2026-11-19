@@ -29,7 +29,7 @@ mcp = FastMCP(
     "millwork-mcp-lite",
     instructions=(
         "Cabinet-shop calculator for frameless (European-style) casework. Typical flow: "
-        "review_cabinet_schedule -> build_cutlist -> sheet_count or nest_sheets -> edgeband_takeoff. "
+        "review_cabinet_schedule -> build_cutlist -> count_sheets or nest_sheets -> calculate_edgeband. "
         "All dimensions are inches. Every tool is read-only and deterministic: it computes from the "
         "job you pass in and never writes files or contacts a machine. Use list_cabinet_types first "
         "if you are unsure how to describe a cabinet."
@@ -65,7 +65,7 @@ JobArg = Annotated[JobIn, Field(description="The cabinet job: job_number, materi
         "issues: [{level: \"error\"|\"warning\", cabinet: tag, message}]}. Errors block the cut list; warnings "
         "need a person to confirm.\n\n"
         'Example: {"job": {"job_number": "K-101", "cabinets": [{"tag": "B1", "type": "base", "width": 36, '
-        '"height": 34.5, "depth": 24, "doors": 1}]}} -> ok=true with one warning that the single door would be about 36" wide.'
+        '"height": 34.5, "depth": 24, "doors": 1}]}} -> ok=true with one warning that the single door would be get_server_info 36" wide.'
     ),
 )
 def review_cabinet_schedule(job: JobArg) -> dict:
@@ -78,7 +78,7 @@ def review_cabinet_schedule(job: JobArg) -> dict:
     description=(
         "Turn a cabinet schedule into a part-by-part cut list for frameless cabinets.\n\n"
         "Use when someone needs the parts to cut, a parts count, or square footage per material. For sheet "
-        "counts use sheet_count; for sheet layouts use nest_sheets; for edgebanding length use edgeband_takeoff.\n\n"
+        "counts use count_sheets; for sheet layouts use nest_sheets; for edgebanding length use calculate_edgeband.\n\n"
         "Construction (generic defaults): full-height sides; bottom between the sides; two 4\" top rails on "
         "base, drawer_base and sink_base, a full top on wall and tall; adjustable shelves 1/16\" narrower than "
         "the opening and 1\" plus the back thickness shallower than the box; an applied back, full width x full "
@@ -107,7 +107,7 @@ def build_cutlist(job: JobArg) -> dict:
     description=(
         "Lay out one material's parts on full sheets for a panel saw and report the cutting plan.\n\n"
         "Use when someone needs the actual sheet layouts (which part goes where). For just the number of sheets "
-        "across every material, sheet_count is faster. The layout is strip-cut and guillotine-safe: each sheet is "
+        "across every material, count_sheets is faster. The layout is strip-cut and guillotine-safe: each sheet is "
         "ripped into strips across its width, then parts are crosscut from each strip. Parts keep their listed "
         "grain direction (length runs along the sheet). 1/4\" is trimmed off each sheet edge. Not for CNC routers.\n\n"
         "Parameters: material is a material code from the job (defaults to case_material); sheet_length and "
@@ -135,10 +135,10 @@ def nest_sheets(
 
 
 @mcp.tool(
-    title="Sheet count takeoff",
+    title="Count sheets",
     annotations=READ_ONLY,
     description=(
-        "Quick material takeoff: how many full sheets each material in the job needs.\n\n"
+        "Count how many full sheets each material in the job needs (quick material takeoff).\n\n"
         "Use for bids and ordering (\"how many sheets of melamine do I need?\"). It runs the same panel-saw "
         "nesting as nest_sheets for every material but returns only the totals; call nest_sheets when someone "
         "needs the layouts.\n\n"
@@ -148,7 +148,7 @@ def nest_sheets(
         'of 1/4" back on 48 x 96 sheets.'
     ),
 )
-def sheet_count(
+def count_sheets(
     job: JobArg,
     sheet_length: Annotated[float, Field(gt=12, le=200, description="Sheet length in inches. Default 96.")] = 96.0,
     sheet_width: Annotated[float, Field(gt=12, le=80, description="Sheet width in inches. Default 48.")] = 48.0,
@@ -167,19 +167,25 @@ def sheet_count(
 
 
 @mcp.tool(
-    title="Edgebanding takeoff",
+    title="Calculate edgebanding",
     annotations=READ_ONLY,
     description=(
-        "Linear feet of edgebanding the job needs, per material, with a waste allowance.\n\n"
-        "Use for ordering edgeband rolls. Counts the front edge of sides, bottoms, tops, top rails and shelves, "
-        "and all four edges of doors and drawer fronts (as in build_cutlist's edgeband field). Backs get none.\n\n"
-        "Parameters: waste_pct is extra added for trimming and setup, 0-50 (default 10).\n\n"
+        "Calculate the linear feet of edgebanding a job needs, per material, with a waste allowance.\n\n"
+        "Use when ordering edgeband rolls or pricing edgebanding. For sheet goods use count_sheets; for the "
+        "individual parts and which edges they get, use build_cutlist (its edgeband field drives this total).\n\n"
+        "Counted edges: the front edge of sides, bottoms, tops, top rails and adjustable shelves ('front'), and "
+        "all four edges of doors and drawer fronts ('all'). Backs get no edgebanding. Edgeband is grouped by the "
+        "part's material code, so doors in front_material are totalled separately from case parts.\n\n"
+        "Parameters: waste_pct is the extra percentage added for trimming and machine setup, 0-50 (default 10).\n\n"
+        "Behaviour: read-only and deterministic. Runs review_cabinet_schedule first and returns {error, review} "
+        "instead of totals if the schedule has errors.\n\n"
         "Returns: {job_number, waste_pct, by_material: {code: {linear_feet, with_waste_linear_feet}}, "
-        "total_with_waste_linear_feet}.\n\n"
-        'Example: {"job": {...}, "waste_pct": 15}.'
+        "total_with_waste_linear_feet}. Feet are rounded to 0.1.\n\n"
+        'Example: one 30" x 30" x 12" wall cabinet with one door and waste_pct=0 gives 19.7 linear feet of the '
+        'case material (sides, bottom and top front edges plus the door perimeter).'
     ),
 )
-def edgeband_takeoff(
+def calculate_edgeband(
     job: JobArg,
     waste_pct: Annotated[float, Field(ge=0, le=50, description="Waste allowance in percent. Default 10.")] = 10.0,
 ) -> dict:
@@ -224,7 +230,7 @@ def list_cabinet_types() -> dict:
 
 
 @mcp.tool(
-    title="About this server",
+    title="Get server info",
     annotations=READ_ONLY,
     description=(
         "What millwork-mcp-lite does, its license, and what the full millwork-mcp adds (CNC router nesting, "
@@ -233,13 +239,13 @@ def list_cabinet_types() -> dict:
         "Returns: {name, license, tools, typical_flow, full_version, full_version_adds, contact}."
     ),
 )
-def about() -> dict:
+def get_server_info() -> dict:
     return {
         "name": "millwork-mcp-lite",
         "license": "MIT",
-        "tools": ["review_cabinet_schedule", "build_cutlist", "nest_sheets", "sheet_count",
-                  "edgeband_takeoff", "list_cabinet_types", "about"],
-        "typical_flow": "review_cabinet_schedule -> build_cutlist -> sheet_count / nest_sheets -> edgeband_takeoff",
+        "tools": ["review_cabinet_schedule", "build_cutlist", "nest_sheets", "count_sheets",
+                  "calculate_edgeband", "list_cabinet_types", "get_server_info"],
+        "typical_flow": "review_cabinet_schedule -> build_cutlist -> count_sheets / nest_sheets -> calculate_edgeband",
         "full_version": FULL_VERSION,
         "full_version_adds": [
             "nested-router CNC nesting (MaxRects, grain-locked, multi-start)",
@@ -284,11 +290,11 @@ def plan_cabinet_job(
     w, l = sheet_size.split("x")
     return (
         f"Turn this into a millwork-mcp-lite job and plan the material order.\n\nDescription: {description}\n\n"
-        "1. Call list_cabinet_types if unsure about types or typical sizes.\n"
+        "1. Call list_cabinet_types if unsure get_server_info types or typical sizes.\n"
         "2. Build the job JSON (unique tags, inches) and call review_cabinet_schedule. Show any warnings and ask "
         "before guessing at missing sizes.\n"
         "3. Call build_cutlist and summarise pieces and square feet per material.\n"
-        f"4. Call sheet_count with sheet_width={w} and sheet_length={l}, then edgeband_takeoff.\n"
+        f"4. Call count_sheets with sheet_width={w} and sheet_length={l}, then calculate_edgeband.\n"
         "5. Give a short order list: sheets per material and edgeband linear feet with waste."
     )
 

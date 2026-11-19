@@ -16,15 +16,15 @@ All tools are read-only and deterministic: they compute from the job you pass in
 |---|---|
 | `review_cabinet_schedule` | Flags duplicate tags, unknown cabinet types, odd sizes, doors that are too wide, shelves in sink bases |
 | `build_cutlist` | Sides, bottoms, tops or rails, shelves, backs, doors and drawer fronts, with edgebanding and square footage per material |
-| `sheet_count` | Quick takeoff: sheets needed for every material in the job |
+| `count_sheets` | Quick takeoff: sheets needed for every material in the job |
 | `nest_sheets` | Strip-cut (guillotine) nesting for a panel saw: sheets needed, yield, and where each part goes |
-| `edgeband_takeoff` | Linear feet of edgebanding per material, with a waste allowance |
+| `calculate_edgeband` | Linear feet of edgebanding per material, with a waste allowance |
 | `list_cabinet_types` | Cabinet types, typical sizes and an example job, for turning drawings into a schedule |
-| `about` | What this server does and what the full version adds |
+| `get_server_info` | What this server does and what the full version adds |
 
 Also included: a `plan_cabinet_job` prompt that walks an AI from a plain-language description to a material order, and two resources (`millwork://examples/small-kitchen`, `millwork://reference/construction`).
 
-**Typical flow:** `review_cabinet_schedule` → `build_cutlist` → `sheet_count` / `nest_sheets` → `edgeband_takeoff`
+**Typical flow:** `review_cabinet_schedule` → `build_cutlist` → `count_sheets` / `nest_sheets` → `calculate_edgeband`
 
 All dimensions are inches. Construction follows generic frameless (European-style) defaults: full-height sides, bottom between the sides, two 4" top rails on base cabinets, an applied 1/4" back, and full-overlay fronts with a 1/16" reveal.
 

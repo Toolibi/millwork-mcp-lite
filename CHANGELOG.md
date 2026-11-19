@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0 - 2026-11-19
+- Consistent verb-first tool names: `sheet_count` is now `count_sheets`, `edgeband_takeoff` is now `calculate_edgeband`, `about` is now `get_server_info`.
+- `calculate_edgeband` description now spells out which edges are counted, the error behaviour and an example result.
+
 ## 0.2.0 - 2026-11-19
 - New tools: `edgeband_takeoff` (linear feet per material with waste) and `list_cabinet_types` (reference sizes and an example job).
 - Typed job input: every field now has a description, units and allowed values in the tool schema.
