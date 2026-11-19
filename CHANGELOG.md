@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.1 - 2026-11-19
+- Fixed two tool-description typos introduced by the 0.3.0 rename.
+
 ## 0.3.0 - 2026-11-19
 - Consistent verb-first tool names: `sheet_count` is now `count_sheets`, `edgeband_takeoff` is now `calculate_edgeband`, `about` is now `get_server_info`.
 - `calculate_edgeband` description now spells out which edges are counted, the error behaviour and an example result.

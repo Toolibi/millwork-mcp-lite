@@ -65,7 +65,7 @@ JobArg = Annotated[JobIn, Field(description="The cabinet job: job_number, materi
         "issues: [{level: \"error\"|\"warning\", cabinet: tag, message}]}. Errors block the cut list; warnings "
         "need a person to confirm.\n\n"
         'Example: {"job": {"job_number": "K-101", "cabinets": [{"tag": "B1", "type": "base", "width": 36, '
-        '"height": 34.5, "depth": 24, "doors": 1}]}} -> ok=true with one warning that the single door would be get_server_info 36" wide.'
+        '"height": 34.5, "depth": 24, "doors": 1}]}} -> ok=true with one warning that the single door would be about 36" wide.'
     ),
 )
 def review_cabinet_schedule(job: JobArg) -> dict:
@@ -290,7 +290,7 @@ def plan_cabinet_job(
     w, l = sheet_size.split("x")
     return (
         f"Turn this into a millwork-mcp-lite job and plan the material order.\n\nDescription: {description}\n\n"
-        "1. Call list_cabinet_types if unsure get_server_info types or typical sizes.\n"
+        "1. Call list_cabinet_types if unsure about types or typical sizes.\n"
         "2. Build the job JSON (unique tags, inches) and call review_cabinet_schedule. Show any warnings and ask "
         "before guessing at missing sizes.\n"
         "3. Call build_cutlist and summarise pieces and square feet per material.\n"
