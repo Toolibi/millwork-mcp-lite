@@ -20,7 +20,7 @@ from . import cutlist as cl
 from .models import CABINET_TYPES, Job
 from .nesting import nest
 from .review import review_job
-from .schemas import JobIn
+from .schemas import JobIn, StockOffcutIn
 
 FULL_VERSION = "https://github.com/Toolibi/millwork-mcp"
 EXAMPLE_PATH = Path(__file__).parent / "small_kitchen.json"
@@ -49,6 +49,15 @@ def _blocked(review: dict) -> dict:
 
 
 JobArg = Annotated[JobIn, Field(description="The cabinet job: job_number, material codes and the cabinets list (inches).")]
+StockArg = Annotated[list[StockOffcutIn], Field(
+    max_length=200,
+    description="Optional leftover pieces on hand (material, length, width, id). They are filled first, largest "
+                "first; a fresh sheet is only opened for parts that do not fit. Pass offcuts returned by an earlier "
+                "nest_sheets call to carry leftovers from one job into the next. Empty list = full sheets only.")]
+
+
+def _stock(stock_offcuts: list[StockOffcutIn]) -> list[dict]:
+    return [o.model_dump() for o in stock_offcuts]
 
 
 @mcp.tool(
@@ -114,14 +123,20 @@ def build_cutlist(job: JobArg) -> dict:
         "min_offcut on both sides, each freeable with guillotine cuts (the band above a part narrower than its "
         "strip, the end of a strip, or the unused width below the last strip). Use them to plan the next job "
         "or to decide whether a remnant can replace a full sheet.\n\n"
+        "To use leftovers already on the rack, pass them as stock_offcuts: they are filled first and the result "
+        "reports which pieces were used, the parts placed on each, and how many full sheets that saved.\n\n"
         "Parameters: material is a material code from the job (defaults to case_material); sheet_length and "
         "sheet_width in inches (default 96 x 48); kerf is the saw blade width in inches (default 0.125); "
-        "min_offcut is the smallest side, in inches, worth keeping (default 12).\n\n"
+        "min_offcut is the smallest side, in inches, worth keeping (default 12); stock_offcuts is an optional list "
+        "of leftover pieces on hand.\n\n"
         "Returns: {job_number, material, sheet_size, sheets_needed, parts_nested, overall_yield_pct, "
         "oversize_parts: [parts too big for the sheet], min_offcut, usable_offcuts (count), offcut_square_feet, "
         "sheets: [{sheet, yield_pct, strips: [{rip_width, y, parts: [{cabinet, name, length, width, x}]}], "
-        "offcuts: [{length, width, x, y, from, square_feet}]}]}. x and y are inches from the sheet's corner; "
-        "offcuts are listed largest first.\n\n"
+        "offcuts: [{length, width, x, y, from, square_feet, material, id}]}]}. x and y are inches from the sheet's corner; "
+        "offcuts are listed largest first and carry material and id, so they can be passed straight back as "
+        "stock_offcuts for the next job. With stock_offcuts, also: stock_offcuts_used: [{id, length, width, "
+        "parts_placed, yield_pct, strips, offcuts}], stock_offcuts_unused: [ids], parts_on_offcuts, "
+        "sheets_without_offcuts, sheets_saved.\n\n"
         'Example: {"job": {...}, "material": "MEL-WHT-34", "sheet_length": 97, "sheet_width": 49}.'
     ),
 )
@@ -132,13 +147,14 @@ def nest_sheets(
     sheet_width: Annotated[float, Field(gt=12, le=80, description="Sheet width in inches, e.g. 48, 49, 60.")] = 48.0,
     kerf: Annotated[float, Field(ge=0, le=0.5, description="Saw blade kerf in inches. Default 0.125 (1/8\").")] = 0.125,
     min_offcut: Annotated[float, Field(ge=1, le=48, description="Smallest offcut side in inches worth keeping. Default 12.")] = 12.0,
+    stock_offcuts: StockArg = [],
 ) -> dict:
     j = _job(job)
     review = review_job(j)
     if not review["ok"]:
         return _blocked(review)
     result = nest(cl.build_cutlist(j), material or j.case_material, sheet_length, sheet_width, kerf,
-                  min_offcut=min_offcut)
+                  min_offcut=min_offcut, stock_offcuts=_stock(stock_offcuts))
     result["job_number"] = j.job_number
     return result
 
@@ -153,7 +169,8 @@ def nest_sheets(
         "needs the layouts.\n\n"
         "Returns: {job_number, sheet_size, materials: {code: {sheets, yield_pct, oversize_parts, usable_offcuts, "
         "offcut_square_feet}}}. oversize_parts counts parts that do not fit the sheet and need a bigger sheet or a "
-        "joint; usable_offcuts counts leftover pieces at least 12\" on both sides (nest_sheets lists them).\n\n"
+        "joint; usable_offcuts counts leftover pieces at least 12\" on both sides (nest_sheets lists them). "
+        "With stock_offcuts, each material also gets parts_on_offcuts and sheets_saved.\n\n"
         'Example: the bundled sample kitchen (8 cabinets) returns 9 sheets of 3/4" case material and 3 sheets '
         'of 1/4" back on 48 x 96 sheets.'
     ),
@@ -162,18 +179,22 @@ def count_sheets(
     job: JobArg,
     sheet_length: Annotated[float, Field(gt=12, le=200, description="Sheet length in inches. Default 96.")] = 96.0,
     sheet_width: Annotated[float, Field(gt=12, le=80, description="Sheet width in inches. Default 48.")] = 48.0,
+    stock_offcuts: StockArg = [],
 ) -> dict:
     j = _job(job)
     review = review_job(j)
     if not review["ok"]:
         return _blocked(review)
     parts = cl.build_cutlist(j)
+    stock = _stock(stock_offcuts)
     out = {}
     for m in sorted({p.material for p in parts}):
-        r = nest(parts, m, sheet_length, sheet_width)
+        r = nest(parts, m, sheet_length, sheet_width, stock_offcuts=stock)
         out[m] = {"sheets": r["sheets_needed"], "yield_pct": r["overall_yield_pct"],
                   "oversize_parts": len(r["oversize_parts"]), "usable_offcuts": r["usable_offcuts"],
                   "offcut_square_feet": r["offcut_square_feet"]}
+        if "sheets_saved" in r:
+            out[m].update({"parts_on_offcuts": r["parts_on_offcuts"], "sheets_saved": r["sheets_saved"]})
     return {"job_number": j.job_number, "sheet_size": f"{sheet_width} x {sheet_length}", "materials": out}
 
 

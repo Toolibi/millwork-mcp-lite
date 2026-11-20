@@ -155,3 +155,51 @@ def test_small_job_returns_a_big_offcut():
     biggest = r["sheets"][0]["offcuts"][0]
     assert biggest["length"] * biggest["width"] > 1000   # most of the sheet is left over
     assert r["offcut_square_feet"] > 7
+
+
+def test_stock_offcuts_are_filled_first_and_save_sheets():
+    j = job()
+    parts = build_cutlist(j)
+    stock = [{"id": "R1", "material": j.case_material, "length": 95.5, "width": 30},
+             {"id": "R2", "material": j.case_material, "length": 60, "width": 24},
+             {"id": "X", "material": "OTHER", "length": 90, "width": 40}]
+    base = nest(parts, j.case_material)
+    r = nest(parts, j.case_material, stock_offcuts=stock)
+    assert r["stock_offcuts_given"] == 2                     # other material ignored
+    assert r["parts_on_offcuts"] > 0
+    assert r["sheets_without_offcuts"] == base["sheets_needed"]
+    assert r["sheets_saved"] == base["sheets_needed"] - r["sheets_needed"] >= 1
+    placed = r["parts_on_offcuts"] + sum(len(s["parts"]) for sh in r["sheets"] for s in sh["strips"])
+    assert placed == base["parts_nested"]                    # nothing lost or duplicated
+    for u in r["stock_offcuts_used"]:
+        for s in u["strips"]:
+            assert s["y"] + s["rip_width"] <= u["width"]
+            for p in s["parts"]:
+                assert p["x"] + p["length"] <= u["length"] and p["width"] <= s["rip_width"]
+
+
+def test_tiny_stock_offcut_is_left_unused():
+    j = job()
+    r = nest(build_cutlist(j), j.case_material,
+             stock_offcuts=[{"id": "scrap", "material": j.case_material, "length": 5, "width": 5}])
+    assert r["stock_offcuts_unused"] == ["scrap"] and r["sheets_saved"] == 0
+
+
+def test_stock_offcuts_through_mcp():
+    stock = [{"id": "R1", "material": "MEL-WHT-34", "length": 95.5, "width": 30}]
+    text = str(_call("count_sheets", {"job": EXAMPLE, "stock_offcuts": stock}))
+    assert "sheets_saved" in text and "parts_on_offcuts" in text
+
+
+def test_returned_offcuts_round_trip_as_stock():
+    d = {"job_number": "A", "cabinets": [{"tag": "W1", "type": "wall", "width": 30, "height": 30,
+                                          "depth": 12, "doors": 2}]}
+    j = Job.from_dict(d)
+    first = nest(build_cutlist(j), j.case_material)
+    leftovers = [o for sh in first["sheets"] for o in sh["offcuts"]]
+    assert leftovers and all(o["material"] == j.case_material and o["id"] for o in leftovers)
+    small = {"job_number": "B", "cabinets": [{"tag": "W2", "type": "wall", "width": 15, "height": 12,
+                                              "depth": 12, "doors": 1}]}
+    j2 = Job.from_dict(small)
+    second = nest(build_cutlist(j2), j2.case_material, stock_offcuts=leftovers)
+    assert second["parts_on_offcuts"] > 0 and second["stock_offcuts_used"][0]["id"].startswith("sheet1-")

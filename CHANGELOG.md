@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 - 2026-11-19
+- New `stock_offcuts` input on `nest_sheets` and `count_sheets`: pass leftover pieces on hand (material, length, width, optional id/rack location) and they are filled first, largest first, before any fresh sheet is opened. Results report which pieces were used, the parts placed on each, `parts_on_offcuts`, `sheets_without_offcuts` and `sheets_saved`.
+- Offcuts returned by `nest_sheets` now carry `material` and an `id`, so an agent can pass one job's leftovers straight into the next job. Lite stays stateless: the agent carries the rack between calls.
+- Closes the loop suggested on r/mcp: leftovers with an x/y position, then reused before cutting into a fresh sheet.
+
 ## 0.4.0 - 2026-11-19
 - `nest_sheets` now hands back leftover material as usable offcuts: real rectangles (length, width, x, y) at least `min_offcut` on both sides, each freeable with guillotine cuts, listed largest first. An agent can plan the next job around them instead of seeing only a waste percentage. Thanks to the r/mcp commenter who suggested it.
 - New `min_offcut` parameter (default 12").

@@ -38,3 +38,14 @@ class JobIn(BaseModel):
     case_thickness: float = Field(0.75, gt=0, le=1.5, description="Case material thickness in inches. Default 0.75.")
     back_thickness: float = Field(0.25, gt=0, le=0.75, description="Back material thickness in inches. Default 0.25.")
     cabinets: list[CabinetIn] = Field(min_length=1, description="The cabinet schedule, one entry per tag.")
+
+
+class StockOffcutIn(BaseModel):
+    """A leftover piece already on the rack, e.g. an offcut returned by an earlier nest_sheets call."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    material: str = Field(description='Material code, matching the job\'s codes, e.g. "MEL-WHT-34". Pieces in other materials are ignored.')
+    length: float = Field(gt=0, le=200, description="Length in inches, along the grain (the long direction of the original sheet).")
+    width: float = Field(gt=0, le=80, description="Width in inches.")
+    id: str = Field("", description='Optional label or rack location, e.g. "R3-left". Echoed back so the shop can find the piece.')
