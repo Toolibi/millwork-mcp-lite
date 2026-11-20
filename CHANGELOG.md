@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0 - 2026-11-19
+- `nest_sheets` now hands back leftover material as usable offcuts: real rectangles (length, width, x, y) at least `min_offcut` on both sides, each freeable with guillotine cuts, listed largest first. An agent can plan the next job around them instead of seeing only a waste percentage. Thanks to the r/mcp commenter who suggested it.
+- New `min_offcut` parameter (default 12").
+- `count_sheets` adds `usable_offcuts` and `offcut_square_feet` per material.
+
 ## 0.3.1 - 2026-11-19
 - Fixed two tool-description typos introduced by the 0.3.0 rename.
 

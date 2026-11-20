@@ -17,7 +17,7 @@ All tools are read-only and deterministic: they compute from the job you pass in
 | `review_cabinet_schedule` | Flags duplicate tags, unknown cabinet types, odd sizes, doors that are too wide, shelves in sink bases |
 | `build_cutlist` | Sides, bottoms, tops or rails, shelves, backs, doors and drawer fronts, with edgebanding and square footage per material |
 | `count_sheets` | Quick takeoff: sheets needed for every material in the job |
-| `nest_sheets` | Strip-cut (guillotine) nesting for a panel saw: sheets needed, yield, and where each part goes |
+| `nest_sheets` | Strip-cut (guillotine) nesting for a panel saw: sheets needed, yield, where each part goes, and the usable offcuts left on each sheet |
 | `calculate_edgeband` | Linear feet of edgebanding per material, with a waste allowance |
 | `list_cabinet_types` | Cabinet types, typical sizes and an example job, for turning drawings into a schedule |
 | `get_server_info` | What this server does and what the full version adds |
@@ -33,7 +33,7 @@ All dimensions are inches. Construction follows generic frameless (European-styl
 ```bash
 pip install -r requirements.txt
 python -m millwork_mcp_lite.server        # stdio MCP server
-python -m pytest -q                       # 11 tests
+python -m pytest -q                       # 13 tests
 ```
 
 ### Claude Desktop, Cursor, VS Code
@@ -89,7 +89,7 @@ Cabinet types: `base`, `drawer_base`, `sink_base`, `wall`, `tall`. A fuller samp
 | Cut list | Generic frameless box | Configurable shop construction standard, finished ends, pre-lam, nailers |
 | Joinery | - | 32mm system: dowel, confirmat, cam & dowel, Lamello Clamex |
 | Grain matching | - | Doors and drawer fronts nested as matched blanks |
-| Nesting | Panel-saw strip packing | Nested-router MaxRects (grain-locked, multi-start) or two-stage panel saw, sheet-size comparison |
+| Nesting | Panel-saw strip packing, usable offcuts returned | Nested-router MaxRects (grain-locked, multi-start) or two-stage panel saw, sheet-size comparison |
 | CNC output | - | woodWOP-ready DXF per sheet with machining layers, CNC program lists |
 | Estimating | Sheet counts and edgeband takeoff | Material from the real nest + hardware + labor + markup |
 | Inventory | - | Stock, offcuts, reserve → cut → consume |

@@ -120,3 +120,38 @@ def test_invalid_type_is_rejected_by_schema():
     bad = {"job_number": "X", "cabinets": [{"tag": "Z1", "type": "island", "width": 30, "height": 34.5, "depth": 24}]}
     with pytest.raises(Exception):
         _call("build_cutlist", {"job": bad})
+
+
+def _rects_overlap(a, b):
+    return a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
+
+
+def test_offcuts_are_real_unused_pieces():
+    for over in ({}, {"cabinets": [{"tag": "W1", "type": "wall", "width": 30, "height": 30,
+                                     "depth": 12, "doors": 2, "adj_shelves": 1}]}):
+        j = job(**over)
+        r = nest(build_cutlist(j), j.case_material, min_offcut=6)
+        assert r["usable_offcuts"] == sum(len(s["offcuts"]) for s in r["sheets"])
+        for sh in r["sheets"]:
+            parts = [(p["x"], s["y"], p["length"], p["width"]) for s in sh["strips"] for p in s["parts"]]
+            for o in sh["offcuts"]:
+                assert o["length"] >= 6 and o["width"] >= 6
+                assert o["x"] >= 0 and o["y"] >= 0
+                assert o["x"] + o["length"] <= 96 and o["y"] + o["width"] <= 48
+                rect = (o["x"], o["y"], o["length"], o["width"])
+                assert not any(_rects_overlap(rect, p) for p in parts)
+            offs = [(o["x"], o["y"], o["length"], o["width"]) for o in sh["offcuts"]]
+            for i in range(len(offs)):
+                for k in range(i + 1, len(offs)):
+                    assert not _rects_overlap(offs[i], offs[k])
+
+
+def test_small_job_returns_a_big_offcut():
+    d = {"job_number": "X", "cabinets": [{"tag": "W1", "type": "wall", "width": 30, "height": 30,
+                                          "depth": 12, "doors": 2}]}
+    j = Job.from_dict(d)
+    r = nest(build_cutlist(j), j.case_material)
+    assert r["sheets_needed"] == 1
+    biggest = r["sheets"][0]["offcuts"][0]
+    assert biggest["length"] * biggest["width"] > 1000   # most of the sheet is left over
+    assert r["offcut_square_feet"] > 7

@@ -110,11 +110,18 @@ def build_cutlist(job: JobArg) -> dict:
         "across every material, count_sheets is faster. The layout is strip-cut and guillotine-safe: each sheet is "
         "ripped into strips across its width, then parts are crosscut from each strip. Parts keep their listed "
         "grain direction (length runs along the sheet). 1/4\" is trimmed off each sheet edge. Not for CNC routers.\n\n"
+        "Leftover material comes back as usable offcuts, not just a waste percentage: real rectangles at least "
+        "min_offcut on both sides, each freeable with guillotine cuts (the band above a part narrower than its "
+        "strip, the end of a strip, or the unused width below the last strip). Use them to plan the next job "
+        "or to decide whether a remnant can replace a full sheet.\n\n"
         "Parameters: material is a material code from the job (defaults to case_material); sheet_length and "
-        "sheet_width in inches (default 96 x 48); kerf is the saw blade width in inches (default 0.125).\n\n"
+        "sheet_width in inches (default 96 x 48); kerf is the saw blade width in inches (default 0.125); "
+        "min_offcut is the smallest side, in inches, worth keeping (default 12).\n\n"
         "Returns: {job_number, material, sheet_size, sheets_needed, parts_nested, overall_yield_pct, "
-        "oversize_parts: [parts too big for the sheet], sheets: [{sheet, yield_pct, strips: [{rip_width, y, "
-        "parts: [{cabinet, name, length, width, x}]}]}]}. x and y are inches from the sheet's corner.\n\n"
+        "oversize_parts: [parts too big for the sheet], min_offcut, usable_offcuts (count), offcut_square_feet, "
+        "sheets: [{sheet, yield_pct, strips: [{rip_width, y, parts: [{cabinet, name, length, width, x}]}], "
+        "offcuts: [{length, width, x, y, from, square_feet}]}]}. x and y are inches from the sheet's corner; "
+        "offcuts are listed largest first.\n\n"
         'Example: {"job": {...}, "material": "MEL-WHT-34", "sheet_length": 97, "sheet_width": 49}.'
     ),
 )
@@ -124,12 +131,14 @@ def nest_sheets(
     sheet_length: Annotated[float, Field(gt=12, le=200, description="Sheet length in inches, e.g. 96, 97, 120.")] = 96.0,
     sheet_width: Annotated[float, Field(gt=12, le=80, description="Sheet width in inches, e.g. 48, 49, 60.")] = 48.0,
     kerf: Annotated[float, Field(ge=0, le=0.5, description="Saw blade kerf in inches. Default 0.125 (1/8\").")] = 0.125,
+    min_offcut: Annotated[float, Field(ge=1, le=48, description="Smallest offcut side in inches worth keeping. Default 12.")] = 12.0,
 ) -> dict:
     j = _job(job)
     review = review_job(j)
     if not review["ok"]:
         return _blocked(review)
-    result = nest(cl.build_cutlist(j), material or j.case_material, sheet_length, sheet_width, kerf)
+    result = nest(cl.build_cutlist(j), material or j.case_material, sheet_length, sheet_width, kerf,
+                  min_offcut=min_offcut)
     result["job_number"] = j.job_number
     return result
 
@@ -142,8 +151,9 @@ def nest_sheets(
         "Use for bids and ordering (\"how many sheets of melamine do I need?\"). It runs the same panel-saw "
         "nesting as nest_sheets for every material but returns only the totals; call nest_sheets when someone "
         "needs the layouts.\n\n"
-        "Returns: {job_number, sheet_size, materials: {code: {sheets, yield_pct, oversize_parts}}}. "
-        "oversize_parts counts parts that do not fit the sheet and need a bigger sheet or a joint.\n\n"
+        "Returns: {job_number, sheet_size, materials: {code: {sheets, yield_pct, oversize_parts, usable_offcuts, "
+        "offcut_square_feet}}}. oversize_parts counts parts that do not fit the sheet and need a bigger sheet or a "
+        "joint; usable_offcuts counts leftover pieces at least 12\" on both sides (nest_sheets lists them).\n\n"
         'Example: the bundled sample kitchen (8 cabinets) returns 9 sheets of 3/4" case material and 3 sheets '
         'of 1/4" back on 48 x 96 sheets.'
     ),
@@ -162,7 +172,8 @@ def count_sheets(
     for m in sorted({p.material for p in parts}):
         r = nest(parts, m, sheet_length, sheet_width)
         out[m] = {"sheets": r["sheets_needed"], "yield_pct": r["overall_yield_pct"],
-                  "oversize_parts": len(r["oversize_parts"])}
+                  "oversize_parts": len(r["oversize_parts"]), "usable_offcuts": r["usable_offcuts"],
+                  "offcut_square_feet": r["offcut_square_feet"]}
     return {"job_number": j.job_number, "sheet_size": f"{sheet_width} x {sheet_length}", "materials": out}
 
 
