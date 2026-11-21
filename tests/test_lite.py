@@ -203,3 +203,28 @@ def test_returned_offcuts_round_trip_as_stock():
     j2 = Job.from_dict(small)
     second = nest(build_cutlist(j2), j2.case_material, stock_offcuts=leftovers)
     assert second["parts_on_offcuts"] > 0 and second["stock_offcuts_used"][0]["id"].startswith("sheet1-")
+
+
+def _json(name, args):
+    return json.loads(_call(name, args)[0].text)
+
+
+def test_count_sheets_matches_full_nest_for_every_material():
+    """count_sheets is the cheap answer; it must agree with nest_sheets for the same job and stock."""
+    stock = [{"id": "R1", "material": "MEL-WHT-34", "length": 95.5, "width": 30},
+             {"id": "R2", "material": "MEL-WHT-34", "length": 40, "width": 20},
+             {"id": "R3", "material": "MEL-WHT-14", "length": 60, "width": 24}]
+    for size in ((96, 48), (120, 60)):
+        for s in ([], stock):
+            args = {"job": EXAMPLE, "sheet_length": size[0], "sheet_width": size[1], "stock_offcuts": s}
+            counts = _json("count_sheets", args)["materials"]
+            assert counts
+            for mat, c in counts.items():
+                full = _json("nest_sheets", {**args, "material": mat})
+                assert c["sheets"] == full["sheets_needed"], (mat, size)
+                assert c["yield_pct"] == full["overall_yield_pct"]
+                assert c["usable_offcuts"] == full["usable_offcuts"]
+                assert c["offcut_square_feet"] == full["offcut_square_feet"]
+                assert c["oversize_parts"] == len(full["oversize_parts"])
+                assert c.get("sheets_saved") == full.get("sheets_saved")
+                assert c.get("parts_on_offcuts") == full.get("parts_on_offcuts")

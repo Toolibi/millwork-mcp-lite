@@ -33,7 +33,7 @@ All dimensions are inches. Construction follows generic frameless (European-styl
 ```bash
 pip install -r requirements.txt
 python -m millwork_mcp_lite.server        # stdio MCP server
-python -m pytest -q                       # 17 tests
+python -m pytest -q                       # 18 tests
 ```
 
 ### Claude Desktop, Cursor, VS Code
