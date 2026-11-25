@@ -6,7 +6,7 @@
 
 Ask Claude, ChatGPT, Copilot or any MCP client *"here's my kitchen, how many sheets of melamine do I need?"* and it calls real code to get the answer, instead of guessing.
 
-Built by a 20-year cabinet/millwork CNC programmer. This is the free edition of [**millwork-mcp**](https://github.com/Toolibi/millwork-mcp), which takes cabinet drawings all the way to CNC-ready nests ([see the demos](https://github.com/Toolibi/millwork-mcp#demos)).
+Built with Claude Code by Prince Boafo, a 20-year cabinet/millwork CNC programmer who supplied the shop rules it follows. This is the free edition of [**millwork-mcp**](https://github.com/Toolibi/millwork-mcp), which takes cabinet drawings all the way to CNC-ready nests ([see the demos](https://github.com/Toolibi/millwork-mcp#demos)).
 
 ## Tools
 
